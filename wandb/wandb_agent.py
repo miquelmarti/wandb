@@ -121,7 +121,7 @@ class AgentProcess:
         return self._proc.terminate()
 
 
-def _create_sweep_command_args(command: Dict) -> Dict[str, Any]:
+def _create_sweep_command_args(command: Dict, resume=False) -> Dict[str, Any]:
     """Create various formats of command arguments for the agent.
 
     Raises:
@@ -139,6 +139,9 @@ def _create_sweep_command_args(command: Dict) -> Dict[str, Any]:
     flags_no_booleans: List[str] = []
     # (4) flags as a dictionary (used for constructing a json)
     flags_dict: Dict[str, Any] = {}
+    # HACK
+    if resume:
+        command["args"] = {"seed": command["args"]["seed"]}
     for param, config in command["args"].items():
         _value: Any = config.get("value", None)
         if _value is None:
@@ -368,7 +371,7 @@ class Agent:
             elif command_type == "exit":
                 result = self._command_exit(command)
             elif command_type == "resume":
-                result = self._command_run(command)
+                result = self._command_run(command, True)
             else:
                 raise AgentError("No such command: %s" % command_type)
             response["result"] = result
@@ -400,7 +403,7 @@ class Agent:
                     command[i] = f"{command[i][:m.start()]}{_var}{command[i][m.end():]}"
         return command
 
-    def _command_run(self, command):
+    def _command_run(self, command, resume=False):
         logger.info(
             "Agent starting run with config:\n"
             + "\n".join(
@@ -444,7 +447,7 @@ class Agent:
 
         env = dict(os.environ)
 
-        sweep_vars: Dict[str, Any] = _create_sweep_command_args(command)
+        sweep_vars: Dict[str, Any] = _create_sweep_command_args(command, resume=resume)
 
         if "${args_json_file}" in sweep_command:
             with open(json_file, "w") as fp:
